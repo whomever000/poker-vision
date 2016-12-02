@@ -1,14 +1,17 @@
 package pokervision
 
 import (
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"image"
 	"image/color"
 	"image/png"
+	"io"
 	"io/ioutil"
 	"log"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -17,23 +20,54 @@ import (
 	"github.com/otiai10/gosseract"
 )
 
+// The fileloader used throughout the library.
+var fileLoader FileLoader = new(defaultFileLoader)
+
+// FileLoader is the interface to file loaders.
+type FileLoader interface {
+	Load(fileName string) io.Reader
+}
+
+// SetFileLoader sets the file loader to use.
+func SetFileLoader(loader FileLoader) {
+	fileLoader = loader
+}
+
+// defaultFileLoader is the file loader that is used, if none other is set.
+type defaultFileLoader struct{}
+
+// Load loads a file from the filesystem.
+func (l *defaultFileLoader) Load(fileName string) io.Reader {
+
+	// Read image file.
+	b, err := ioutil.ReadFile(fileName)
+	if err != nil {
+		log.Printf("error: Could not load image file %v", fileName)
+		return nil
+	}
+
+	return bytes.NewReader(b)
+}
+
 // Matcher is the public interface to a matcher.
 type Matcher interface {
 	Match(srcName string, img image.Image) string
 }
 
-// NewMatcher creates a new matcher from a JSON ref file.
+// NewMatcher creates a new matcher from a JSON encoded file.
 func NewMatcher(refFile string) (Matcher, error) {
 
 	// Read JSON file containing references.
-	buf, err := ioutil.ReadFile(refFile)
-	if err != nil {
-		return nil, err
+	reader := fileLoader.Load(refFile)
+	if reader == nil {
+		return nil, errors.New("Failed to load ref file")
 	}
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(reader)
 
 	// Fill data from JSON into matcher.
 	var m matcher
-	err = json.Unmarshal(buf, &m)
+	err := json.Unmarshal(buf.Bytes(), &m)
 	if err != nil {
 		return nil, err
 	}
@@ -420,16 +454,13 @@ func compareImagesMonochrome(img1 image.Image, img2 image.Image) (equal bool) {
 // loadImage loads and png image.
 func loadImage(fileName string) (refImg image.Image, err error) {
 
-	// Load image file.
-	imgFile, err := os.Open(fileName)
-	if err != nil {
-		log.Printf("error: %v", err)
-		return
+	reader := fileLoader.Load(fileName)
+	if reader == nil {
+		return nil, fmt.Errorf("Failed to load image %v", fileName)
 	}
-	defer imgFile.Close()
 
 	// Decode image.
-	refImg, err = png.Decode(imgFile)
+	refImg, err = png.Decode(reader)
 	if err != nil {
 		log.Printf("error: %v", err)
 	}

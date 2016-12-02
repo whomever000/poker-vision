@@ -1,8 +1,10 @@
 package pokervision
 
 import (
+	"bytes"
 	"image"
 	"image/color"
+	"io"
 	"reflect"
 	"testing"
 )
@@ -24,7 +26,7 @@ func TestNewMatcher(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := NewMatcher(tt.args.refFile)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("NewMatcher() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("NewMatcherFromFile() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 		})
@@ -328,5 +330,51 @@ func Test_loadImage(t *testing.T) {
 				return
 			}
 		})
+	}
+}
+
+func Test_defaultFileLoader_Load(t *testing.T) {
+	type args struct {
+		fileName string
+	}
+	tests := []struct {
+		name string
+		l    *defaultFileLoader
+		args args
+		want io.Reader
+	}{
+	// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := &defaultFileLoader{}
+			if got := l.Load(tt.args.fileName); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("defaultFileLoader.Load() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+type testLoader struct{}
+
+func (*testLoader) Load(s string) io.Reader {
+	switch s {
+	case "1":
+		return nil
+	case "2":
+		return bytes.NewReader(nil)
+	}
+	return nil
+}
+
+func TestSetFileLoader(t *testing.T) {
+
+	SetFileLoader(&testLoader{})
+
+	if r := fileLoader.Load("1"); r != nil {
+		t.Errorf("TestSetFileLoader() = %v, want nil", r)
+	}
+	if r := fileLoader.Load("2"); r == nil {
+		t.Errorf("TestSetFileLoader() = %v, want io.Reader", r)
 	}
 }
