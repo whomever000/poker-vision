@@ -2,9 +2,11 @@ package pokervision
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"image"
 	"image/color"
 	"image/png"
+	"io/ioutil"
 	"log"
 	"os"
 	"regexp"
@@ -14,6 +16,30 @@ import (
 	"github.com/nfnt/resize"
 	"github.com/otiai10/gosseract"
 )
+
+// Matcher is the public interface to a matcher.
+type Matcher interface {
+	Match(srcName string, img image.Image) string
+}
+
+// NewMatcher creates a new matcher from a JSON ref file.
+func NewMatcher(refFile string) (Matcher, error) {
+
+	// Read JSON file containing references.
+	buf, err := ioutil.ReadFile(refFile)
+	if err != nil {
+		return nil, err
+	}
+
+	// Fill data from JSON into matcher.
+	var m matcher
+	err = json.Unmarshal(buf, &m)
+	if err != nil {
+		return nil, err
+	}
+
+	return &m, nil
+}
 
 // subImager provides an interface for image-types with the SubImage() function.
 type subImager interface {

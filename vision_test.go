@@ -1,13 +1,35 @@
 package pokervision
 
 import (
-	"encoding/json"
 	"image"
 	"image/color"
-	"io/ioutil"
 	"reflect"
 	"testing"
 )
+
+func TestNewMatcher(t *testing.T) {
+	type args struct {
+		refFile string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{"Valid", args{"./testdata/refs.json"}, false},
+		{"Does not exist", args{"./testdata/noExist.json"}, true},
+		{"Malformed", args{"./testdata/malformed.json"}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := NewMatcher(tt.args.refFile)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("NewMatcher() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+		})
+	}
+}
 
 func Test_matcher_Match(t *testing.T) {
 
@@ -16,6 +38,11 @@ func Test_matcher_Match(t *testing.T) {
 	img, err := loadImage("./testdata/master.png")
 	if err != nil {
 		t.Errorf("matcher.Match() failed to load master image. %v", err)
+	}
+
+	m, err := NewMatcher(refFile)
+	if err != nil {
+		t.Errorf("matcher.Match() failed to load ref file. %v", err)
 	}
 
 	type args struct {
@@ -43,19 +70,6 @@ func Test_matcher_Match(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := matcher{}
-
-			// Read JSON file containing references.
-			buf, err := ioutil.ReadFile(refFile)
-			if err != nil {
-				t.Errorf("matcher.Match() failed to load ref file. %v", err)
-			}
-
-			// Fill data from JSON into im.
-			err = json.Unmarshal(buf, &m)
-			if err != nil {
-				t.Errorf("matcher.Match() failed to parse ref file. %v", err)
-			}
 
 			if gotRef := m.Match(tt.args.srcName, tt.args.img); gotRef != tt.wantRef {
 				t.Errorf("matcher.Match() = %v, want %v", gotRef, tt.wantRef)
