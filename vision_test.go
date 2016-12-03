@@ -202,6 +202,26 @@ func Test_handleOCR(t *testing.T) {
 	if err != nil {
 		t.Errorf("handleOCR() failed to load test files. %v", err)
 	}
+	lightNum1, err := loadImage("./testdata/lightNum1.png")
+	if err != nil {
+		t.Errorf("handleOCR() failed to load test files. %v", err)
+	}
+	lightNum2, err := loadImage("./testdata/lightNum2.png")
+	if err != nil {
+		t.Errorf("handleOCR() failed to load test files. %v", err)
+	}
+	darkNum1, err := loadImage("./testdata/darkNum1.png")
+	if err != nil {
+		t.Errorf("handleOCR() failed to load test files. %v", err)
+	}
+	darkNum2, err := loadImage("./testdata/darkNum2.png")
+	if err != nil {
+		t.Errorf("handleOCR() failed to load test files. %v", err)
+	}
+	pot, err := loadImage("./testdata/pot.png")
+	if err != nil {
+		t.Errorf("handleOCR() failed to load test files. %v", err)
+	}
 
 	type args struct {
 		srcImg image.Image
@@ -212,10 +232,15 @@ func Test_handleOCR(t *testing.T) {
 		args args
 		want string
 	}{
-		{"Light #1", args{light1, "200"}, "skendroshen"},
-		{"Light #2", args{light2, "200"}, "runnings"},
-		{"Dark #1", args{dark1, "200"}, "luistirelli"},
-		{"Dark #2", args{dark2, "200"}, "boasss"},
+		{"Light #1", args{light1, "200,y"}, "skendroshen"},
+		{"Light #2", args{light2, "200,y"}, "runnings"},
+		{"Dark #1", args{dark1, "200,Y"}, "luistirelli"},
+		{"Dark #2", args{dark2, "200,Y"}, "boasss"},
+		{"Light number #1", args{lightNum1, "200,n"}, "$1.98"},
+		{"Light number #2", args{lightNum2, "200,n"}, "$2.66"},
+		{"Dark number #1", args{darkNum1, "200,n"}, "$0.98"},
+		{"Dark number #2", args{darkNum2, "200,n"}, "$2.39"},
+		{"Pot", args{pot, "200,n"}, "$0.03"},
 		{"Invalid arg", args{dark2, "asd"}, ""},
 	}
 	for _, tt := range tests {

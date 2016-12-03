@@ -322,6 +322,9 @@ func handleColor(r *reference, srcColor color.Color) string {
 // handleOCR handles a OCR operation
 func handleOCR(srcImg image.Image, args string) string {
 
+	var charsOnly = false
+	var numbersOnly = false
+
 	strs := strings.Split(args, ",")
 	for i, arg := range strs {
 		switch i {
@@ -338,22 +341,41 @@ func handleOCR(srcImg image.Image, args string) string {
 				srcImg = resize.Resize(uint(w), 0, srcImg, resize.Bilinear)
 			}
 
+		// Characters only.
+		case 1:
+			if strings.ToLower(arg) == "y" {
+				charsOnly = true
+			} else if strings.ToLower(arg) == "n" {
+				numbersOnly = true
+			}
 		}
 	}
 
 	client, _ := gosseract.NewClient()
 	out, _ := client.Image(srcImg).Out()
 
-	// LEET-ify numbers
-	out = strings.Replace(out, "1", "l", -1)
-	out = strings.Replace(out, "2", "r", -1)
-	out = strings.Replace(out, "3", "e", -1)
-	out = strings.Replace(out, "4", "a", -1)
-	out = strings.Replace(out, "5", "s", -1)
-	out = strings.Replace(out, "6", "g", -1)
-	out = strings.Replace(out, "7", "t", -1)
-	out = strings.Replace(out, "8", "b", -1)
-	out = strings.Replace(out, "9", "g", -1)
+	if charsOnly {
+		// LEET-ify characters which may be interpreted as numbers
+		out = strings.Replace(out, "1", "l", -1)
+		out = strings.Replace(out, "2", "r", -1)
+		out = strings.Replace(out, "3", "e", -1)
+		out = strings.Replace(out, "4", "a", -1)
+		out = strings.Replace(out, "5", "s", -1)
+		out = strings.Replace(out, "6", "g", -1)
+		out = strings.Replace(out, "7", "t", -1)
+		out = strings.Replace(out, "8", "b", -1)
+		out = strings.Replace(out, "9", "g", -1)
+	} else if numbersOnly {
+		// De-LEET-ify numbers which may be interpreted as characters.
+		out = strings.Replace(out, "l", "1", -1)
+		out = strings.Replace(out, "i", "1", -1)
+		out = strings.Replace(out, "r", "2", -1)
+		out = strings.Replace(out, "a", "4", -1)
+		out = strings.Replace(out, "s", "5", -1)
+		out = strings.Replace(out, "t", "7", -1)
+		out = strings.Replace(out, "b", "8", -1)
+		out = strings.Replace(out, "g", "9", -1)
+	}
 
 	regx := regexp.MustCompile("[ \\n]")
 	out = regx.ReplaceAllString(out, "")
