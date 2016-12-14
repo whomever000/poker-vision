@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"image/draw"
 	"image/png"
 	"io"
 	"io/ioutil"
@@ -52,6 +53,7 @@ func (l *defaultFileLoader) Load(fileName string) io.Reader {
 // Matcher is the public interface to a matcher.
 type Matcher interface {
 	Match(srcName string, img image.Image) string
+	VisualizeSource(img image.Image, srcs []string) image.Image
 }
 
 // NewMatcher creates a new matcher from a JSON encoded file.
@@ -99,6 +101,45 @@ type reference struct {
 type matcher struct {
 	Srcs []source
 	Refs []reference
+}
+
+func (im *matcher) VisualizeSource(src image.Image, srcs []string) image.Image {
+
+	b := src.Bounds()
+	mutImg := image.NewRGBA(b)
+
+	draw.Draw(mutImg, b, src, b.Min, draw.Src)
+
+	for _, src := range srcs {
+		src := im.findSource(src)
+
+		col := color.RGBA{255, 0, 0, 255}
+
+		if len(src.Src) == 2 {
+
+			mutImg.Set(src.Src[0], src.Src[1], col)
+
+		} else if len(src.Src) == 4 {
+
+			for x := 0; x < src.Src[2]; x += 5 {
+				mutImg.Set(src.Src[0]+x, src.Src[1], col)
+				mutImg.Set(src.Src[0]+x, src.Src[1]+src.Src[3], col)
+			}
+
+			for y := 0; y < src.Src[3]; y += 5 {
+				mutImg.Set(src.Src[0], src.Src[1]+y, col)
+				mutImg.Set(src.Src[0]+src.Src[2], src.Src[1]+y, col)
+			}
+
+		}
+
+		/*
+			mutImg.Set(src.Src[0]+src.Src[2], src.Src[1], color.RGBA{255, 0, 0, 255})
+			mutImg.Set(src.Src[0]+src.Src[2], src.Src[1]+src.Src[3], color.RGBA{255, 0, 0, 255})
+			mutImg.Set(src.Src[0], src.Src[1]+src.Src[3], color.RGBA{255, 0, 0, 255})*/
+	}
+
+	return mutImg
 }
 
 // Match matches a source (specified by srcName) with its assiocitated references.
@@ -312,6 +353,7 @@ func handleColor(r *reference, srcColor color.Color) string {
 		(green/256) == uint32(b[1]) &&
 		(blue/256) == uint32(b[2]) {
 		// Match.
+
 		return r.Name
 	}
 
@@ -322,8 +364,8 @@ func handleColor(r *reference, srcColor color.Color) string {
 // handleOCR handles a OCR operation
 func handleOCR(srcImg image.Image, args string) string {
 
-	var charsOnly = false
-	var numbersOnly = false
+	/*var charsOnly = false
+	var numbersOnly = false*/
 
 	strs := strings.Split(args, ",")
 	for i, arg := range strs {
@@ -331,6 +373,10 @@ func handleOCR(srcImg image.Image, args string) string {
 
 		// Image width.
 		case 0:
+			if len(arg) == 0 {
+				break
+			}
+
 			w, err := strconv.Atoi(arg)
 			if err != nil {
 				log.Printf("error: Illegal OCR arg width=%v", arg)
@@ -338,48 +384,50 @@ func handleOCR(srcImg image.Image, args string) string {
 			}
 
 			if w > 0 {
-				srcImg = resize.Resize(uint(w), 0, srcImg, resize.Bilinear)
+				srcImg = resize.Resize(uint(w), 0, srcImg, resize.Lanczos2)
 			}
 
-		// Characters only.
-		case 1:
-			if strings.ToLower(arg) == "y" {
-				charsOnly = true
-			} else if strings.ToLower(arg) == "n" {
-				numbersOnly = true
-			}
+			// Characters only.
+			/*case 1:
+				if strings.ToLower(arg) == "y" {
+					charsOnly = true
+				} else if strings.ToLower(arg) == "n" {
+					numbersOnly = true
+				}
+			}*/
 		}
 	}
 
 	client, _ := gosseract.NewClient()
 	out, _ := client.Image(srcImg).Out()
 
-	if charsOnly {
-		// LEET-ify characters which may be interpreted as numbers
-		out = strings.Replace(out, "1", "l", -1)
-		out = strings.Replace(out, "2", "r", -1)
-		out = strings.Replace(out, "3", "e", -1)
-		out = strings.Replace(out, "4", "a", -1)
-		out = strings.Replace(out, "5", "s", -1)
-		out = strings.Replace(out, "6", "g", -1)
-		out = strings.Replace(out, "7", "t", -1)
-		out = strings.Replace(out, "8", "b", -1)
-		out = strings.Replace(out, "9", "g", -1)
-	} else if numbersOnly {
-		// De-LEET-ify numbers which may be interpreted as characters.
-		out = strings.Replace(out, "l", "1", -1)
-		out = strings.Replace(out, "i", "1", -1)
-		out = strings.Replace(out, "r", "2", -1)
-		out = strings.Replace(out, "a", "4", -1)
-		out = strings.Replace(out, "s", "5", -1)
-		out = strings.Replace(out, "t", "7", -1)
-		out = strings.Replace(out, "b", "8", -1)
-		out = strings.Replace(out, "g", "9", -1)
-	}
+	/*
+		if charsOnly {
+			// LEET-ify characters which may be interpreted as numbers
+			out = strings.Replace(out, "1", "l", -1)
+			out = strings.Replace(out, "2", "r", -1)
+			out = strings.Replace(out, "3", "e", -1)
+			out = strings.Replace(out, "4", "a", -1)
+			out = strings.Replace(out, "5", "s", -1)
+			out = strings.Replace(out, "6", "g", -1)
+			out = strings.Replace(out, "7", "t", -1)
+			out = strings.Replace(out, "8", "b", -1)
+			out = strings.Replace(out, "9", "g", -1)
+		} else if numbersOnly {
+			// De-LEET-ify numbers which may be interpreted as characters.
+			out = strings.Replace(out, "l", "1", -1)
+			out = strings.Replace(out, "i", "1", -1)
+			out = strings.Replace(out, "r", "2", -1)
+			out = strings.Replace(out, "a", "4", -1)
+			out = strings.Replace(out, "s", "5", -1)
+			out = strings.Replace(out, "t", "7", -1)
+			out = strings.Replace(out, "b", "8", -1)
+			out = strings.Replace(out, "g", "9", -1)
+		}*/
 
 	regx := regexp.MustCompile("[ \\n]")
 	out = regx.ReplaceAllString(out, "")
-	return strings.ToLower(out)
+	return out //strings.ToLower(out)
 }
 
 // compareImages compares two images pixel by pixel. Images must be of same size
